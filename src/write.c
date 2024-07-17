@@ -4,12 +4,13 @@
  * see LICENSE included with package
  */
 
-#include <stdio.h>
 #include <memory.h>
+#include <stdio.h>
 #include <time.h>
 #include "hlsparse.h"
-#include "write.h"
 #include "parse.h"
+#include "write.h"
+
 
 #define HLSP_PAGE_SIZE   (4096) // 4KB Page size
 

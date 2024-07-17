@@ -6,8 +6,8 @@
 #ifndef _HLSPARSE_H
 #define _HLSPARSE_H
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 // HLSCode values
 #define HLS_OK      (0)

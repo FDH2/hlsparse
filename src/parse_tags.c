@@ -281,7 +281,7 @@ void hlsparse_param_list_init(param_list_t *dest)
  * @param params The list of parameters than need to be freed if they exist
  * @param size The number of items in params
  */
-void parse_param_term(char ***params, int size)
+void hlsparse_param_term(char ***params, int size)
 {
     for(int i=0; i<size; ++i) {
         if(params[i] && *params[i]) {
@@ -303,7 +303,7 @@ void hlsparse_ext_inf_term(ext_inf_t *ext_inf)
 {
     if(ext_inf) {
         char **params[] = { &ext_inf->title };
-        parse_param_term(params, 1);
+        hlsparse_param_term(params, 1);
     }
 }
 
@@ -324,7 +324,7 @@ void hlsparse_iframe_stream_inf_term(iframe_stream_inf_t *stream_inf)
             &stream_inf->uri
         };
 
-        parse_param_term(params, 3);
+        hlsparse_param_term(params, 3);
     }
 }
 
@@ -349,7 +349,7 @@ void hlsparse_stream_inf_term(stream_inf_t *stream_inf)
             &stream_inf->uri
         };
 
-        parse_param_term(params, 7);
+        hlsparse_param_term(params, 7);
     }
 }
 
@@ -371,7 +371,7 @@ void hlsparse_key_term(hls_key_t *dest)
             &dest->key_format_versions
         };
 
-        parse_param_term(params, 4);
+        hlsparse_param_term(params, 4);
     }
 }
 
@@ -390,7 +390,7 @@ void hlsparse_map_term(map_t *dest)
             &dest->uri
         };
 
-        parse_param_term(params, 1);
+        hlsparse_param_term(params, 1);
     }
 }
 
@@ -417,7 +417,7 @@ void hlsparse_daterange_term(daterange_t *dest)
         dest->scte35_out_size = 0;
         dest->scte35_in_size = 0;
 
-        parse_param_term(params, 5);
+        hlsparse_param_term(params, 5);
         hlsparse_param_list_term(&dest->client_attributes);
     }
 }
@@ -443,7 +443,7 @@ void hlsparse_media_term(media_t *dest)
             &dest->channels,
         };
 
-        parse_param_term(params, 7);
+        hlsparse_param_term(params, 7);
     }
 }
 
@@ -463,7 +463,7 @@ void hlsparse_segment_term(segment_t *dest)
             &dest->uri
         };
 
-        parse_param_term(params, 2);
+        hlsparse_param_term(params, 2);
         
         hlsparse_string_list_term(&dest->custom_tags);
     }
@@ -487,7 +487,7 @@ void hlsparse_session_data_term(session_data_t *dest)
             &dest->value
         };
 
-        parse_param_term(params, 4);
+        hlsparse_param_term(params, 4);
     }
 }
 
@@ -550,7 +550,7 @@ void hlsparse_session_data_list_term(session_data_list_t *dest)
  *
  * @param dest The object to cleanup
  */
-void parse_key_list_term(key_list_t *dest)
+void hlsparse_key_list_term(key_list_t *dest)
 {
     if(dest) {
         if(dest->data) {
@@ -561,7 +561,7 @@ void parse_key_list_term(key_list_t *dest)
         key_list_t *ptr = dest->next;
 
         if(ptr) {
-            parse_key_list_term(ptr);
+            hlsparse_key_list_term(ptr);
             hls_free(ptr);
         }
     }
@@ -600,7 +600,7 @@ void hlsparse_media_list_term(media_list_t *dest)
  *
  * @param dest The object to cleanup
  */
-void parse_map_list_term(map_list_t *dest)
+void hlsparse_map_list_term(map_list_t *dest)
 {
     if(dest) {
         if(dest->data) {
@@ -611,7 +611,7 @@ void parse_map_list_term(map_list_t *dest)
         map_list_t *ptr = dest->next;
 
         if(ptr) {
-            parse_map_list_term(ptr);
+            hlsparse_map_list_term(ptr);
             hls_free(ptr);
         }
     }

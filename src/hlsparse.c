@@ -1,5 +1,5 @@
-#include "parse.h"
 #include <memory.h>
+#include "parse.h"
 
 hlsparse_malloc_callback hls_malloc = (hlsparse_malloc_callback) malloc;
 hlsparse_free_callback hls_free = (hlsparse_free_callback) free;
@@ -12,7 +12,7 @@ HLSCode hlsparse_global_init(void)
     return HLS_OK;
 }
 
-HLSCode hlsparse_init_mem(hlsparse_malloc_callback m, hlsparse_free_callback f)
+HLSCode hlsparse_global_init_mem(hlsparse_malloc_callback m, hlsparse_free_callback f)
 {
     if(!m || !f) {
         return HLS_ERROR;
@@ -53,7 +53,7 @@ HLSCode hlsparse_master_term(master_t *dest)
         &dest->uri
     };
 
-    parse_param_term(params, 1);
+    hlsparse_param_term(params, 1);
     hlsparse_string_list_term(&dest->custom_tags);
     hlsparse_session_data_list_term(&dest->session_data);
     hlsparse_media_list_term(&dest->media);
@@ -72,10 +72,10 @@ HLSCode hlsparse_media_playlist_term(media_playlist_t *dest)
         &dest->uri
     };
 
-    parse_param_term(params, 1);
+    hlsparse_param_term(params, 1);
     hlsparse_string_list_term(&dest->custom_tags);
     hlsparse_segment_list_term(&dest->segments);
-    parse_map_list_term(&dest->maps);
+    hlsparse_map_list_term(&dest->maps);
     hlsparse_daterange_list_term(&dest->dateranges);
     
     return HLS_OK;

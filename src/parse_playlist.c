@@ -4,9 +4,9 @@
  * see LICENSE included with package
  */
 
-#include "parse.h"
 #include <memory.h>
 #include <string.h>
+#include "parse.h"
 
 /**
  * parses an HLS master playlist src into a master_t struct
