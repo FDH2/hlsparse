@@ -74,7 +74,6 @@ int parse_master_tag(const char *src, size_t size, master_t *dest)
         char* path = NULL;
         pt += parse_line_to_str(pt, &path, size - (pt - src));
         path_combine(&stream_inf->uri, dest->uri, path);
-        if (path) hls_free(path);
 
         stream_inf_list_t *next = &dest->stream_infs;
 
@@ -90,8 +89,6 @@ int parse_master_tag(const char *src, size_t size, master_t *dest)
             }
             next = next->next;
         };
-
-        dest->nb_stream_infs++;
 
     } else if (EQUAL(pt, EXTXIFRAMESTREAMINF)) {
 
@@ -116,8 +113,6 @@ int parse_master_tag(const char *src, size_t size, master_t *dest)
             }
             next = next->next;
         };
-
-        dest->nb_iframe_stream_infs++;
 
     } else if (EQUAL(pt, EXTXSESSIONDATA)) {
 
@@ -306,7 +301,7 @@ int parse_media_playlist_tag(const char *src, size_t size, media_playlist_t *des
                 next->data = segment;
                 break;
             } else if(!next->next) {
-                next->next = hls_malloc(sizeof(segment_list_t));
+                next->next = hls_malloc(sizeof(segment_t));
                 hlsparse_segment_list_init(next->next);
                 next->next->data = segment;
                 break;

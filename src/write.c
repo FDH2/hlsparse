@@ -60,24 +60,6 @@ void timestamp_to_iso_date(timestamp_t timestamp, char *date_str, size_t size)
     snprintf(date_str, size, "%s.%03dZ", tmp, milli);
 }
 
-const char* find_relative_path(const char *path, const char *base)
-{
-    if(path && base) {
-        const char *rel = path;
-        const char *ptr_pl = base;
-        const char *ptr_seg = path;
-        while(*ptr_seg == *ptr_pl) {
-            if(*ptr_seg == '/') {
-                rel = ptr_seg + 1;
-            }
-            ptr_seg++;
-            ptr_pl++;
-        }
-        return rel;
-    }
-    return path;
-}
-
 HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
 {
     if(!dest || dest_size <= 0 || !master) {
@@ -103,12 +85,7 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
             case MEDIA_TYPE_CLOSEDCAPTIONS: START_TAG_ENUM(EXTXMEDIA, TYPE, CLOSEDCAPTIONS); break;
         }
 
-        if(master->uri) {
-            const char *uri = find_relative_path(media->data->uri, master->uri);
-            ADD_PARAM_STR_OPTL(URI, uri);
-        }else{
-            ADD_PARAM_STR_OPTL(URI, media->data->uri);
-        }
+        ADD_PARAM_STR_OPTL(URI, media->data->uri);
         ADD_PARAM_STR(GROUPID, media->data->group_id);
         ADD_PARAM_STR_OPTL(LANGUAGE, media->data->language);
         ADD_PARAM_STR_OPTL(ASSOCLANGUAGE, media->data->language);
@@ -153,9 +130,19 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
         ADD_PARAM_STR_OPTL(SUBTITLES, inf->subtitles);
         ADD_PARAM_STR_OPTL(CLOSEDCAPTIONS, inf->closed_captions);
         END_TAG();
+        // see if we can create a relative url
         if(master->uri) {
-            const char *uri = find_relative_path(inf->uri, master->uri);
-            ADD_URI(uri);
+            const char *rel = inf->uri;
+            const char *ptr_pl = master->uri;
+            const char *ptr_seg = inf->uri;
+            while(*ptr_seg == *ptr_pl) {
+                if(*ptr_seg == '/') {
+                    rel = ptr_seg + 1;
+                }
+                ptr_seg++;
+                ptr_pl++;
+            }
+            ADD_URI(rel);
         }else{
             ADD_URI(inf->uri);
         }
@@ -174,13 +161,7 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
             case HDCP_LEVEL_TYPE0: latest = pgprintf(latest, ",%s=%s", HDCPLEVEL, TYPE0); break;
         }
         ADD_PARAM_STR_OPTL(VIDEO, inf->video);
-        if(master->uri) {
-            const char *uri = find_relative_path(inf->uri, master->uri);
-            ADD_PARAM_STR(URI, uri);
-        }else{
-            ADD_PARAM_STR(URI, inf->uri);
-        }
-        
+        ADD_PARAM_STR(URI, inf->uri);
         END_TAG();
         if_stream_inf_list = if_stream_inf_list->next;
     } 
@@ -190,12 +171,7 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
         session_data_t *sess = sess_data->data;
         START_TAG_STR(EXTXSESSIONDATA, DATAID, sess->data_id);
         ADD_PARAM_STR_OPTL(VALUE, sess->value);
-        if(master->uri) {
-            const char *uri = find_relative_path(sess->uri, master->uri);
-            ADD_PARAM_STR_OPTL(URI, uri);
-        }else{
-            ADD_PARAM_STR_OPTL(URI, sess->uri);
-        }
+        ADD_PARAM_STR_OPTL(URI, sess->uri);
         ADD_PARAM_STR_OPTL(LANGUAGE, sess->language);
         END_TAG();
         sess_data = sess_data->next;
@@ -209,12 +185,7 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
             case KEY_METHOD_AES128: START_TAG_ENUM(EXTXSESSIONKEY, METHOD, AES128); break;
             case KEY_METHOD_SAMPLEAES: START_TAG_ENUM(EXTXSESSIONKEY, METHOD, SAMPLEAES); break;
         }
-        if(master->uri) {
-            const char *uri = find_relative_path(key->uri, master->uri);
-            ADD_PARAM_STR_OPTL(URI, uri);
-        }else {
-            ADD_PARAM_STR_OPTL(URI, key->uri);
-        }
+        ADD_PARAM_STR_OPTL(URI, key->uri);
         ADD_PARAM_HEX_OPTL(KEY_IV, key->iv, 16);
         ADD_PARAM_STR_OPTL(KEYFORMAT, key->key_format);
         ADD_PARAM_STR_OPTL(KEYFORMATVERSIONS, key->key_format_versions);
@@ -223,8 +194,6 @@ HLSCode hlswrite_master(char **dest, int *dest_size, master_t *master)
     }
 
     page_to_str(root, dest, dest_size);
-    
-    free_page_root(root);
 
     return HLS_OK;
 }
@@ -262,83 +231,78 @@ HLSCode hlswrite_media(char **dest, int *dest_size, media_playlist_t *playlist)
 
     for(i=0; i<playlist->nb_segments; ++i)
     {
-        // write custom tags first even if the segment uri isn't available
-        // because we could have custom tags indicating actions here e.g. ad post-roll injection
+        // new Key index?
+        if(seg->data->key_index > key_idx) {
+            key_idx = seg->data->key_index;
+            // find the key
+            int j=0;
+            key_list_t *key_list = &playlist->keys;
+            hls_key_t *key = NULL;  
+            while(key_list && key_list->data && j++ <= key_idx) {
+                key = key_list->data;
+                key_list = key_list->next;
+            }
+
+            // add key tag
+            if(key) {
+                switch(key->method) {
+                    case KEY_METHOD_NONE: START_TAG_ENUM(EXTXKEY, METHOD, NONE); break;
+                    case KEY_METHOD_AES128: START_TAG_ENUM(EXTXKEY, METHOD, AES128); break;
+                    case KEY_METHOD_SAMPLEAES: START_TAG_ENUM(EXTXKEY, METHOD, SAMPLEAES); break;
+                }
+                ADD_PARAM_STR_OPTL(URI, key->uri);
+                ADD_PARAM_HEX_OPTL(KEY_IV, key->iv, 16);
+                ADD_PARAM_STR_OPTL(KEYFORMAT, key->key_format);
+                ADD_PARAM_STR_OPTL(KEYFORMATVERSIONS, key->key_format_versions);
+                END_TAG();
+            }
+        }
+
         string_list_t *ctags = &seg->data->custom_tags;
         while(ctags && ctags->data) {
             ADD_TAG(ctags->data);
             ctags = ctags->next;
         }
 
-        // only write the other tags if the uri exists
-        if(seg->data->uri) {
-            
-            // new Key index?
-            if(seg->data->key_index > key_idx) {
-                key_idx = seg->data->key_index;
-                // find the key
-                int j=0;
-                key_list_t *key_list = &playlist->keys;
-                hls_key_t *key = NULL;  
-                while(key_list && key_list->data && j++ <= key_idx) {
-                    key = key_list->data;
-                    key_list = key_list->next;
-                }
-
-                // add key tag
-                if(key) {
-                    switch(key->method) {
-                        case KEY_METHOD_NONE: START_TAG_ENUM(EXTXKEY, METHOD, NONE); break;
-                        case KEY_METHOD_AES128: START_TAG_ENUM(EXTXKEY, METHOD, AES128); break;
-                        case KEY_METHOD_SAMPLEAES: START_TAG_ENUM(EXTXKEY, METHOD, SAMPLEAES); break;
-                    }
-                    if(playlist->uri) {
-                        const char *uri = find_relative_path(key->uri, playlist->uri);
-                        ADD_PARAM_STR_OPTL(URI, uri);
-                    }else{
-                        ADD_PARAM_STR_OPTL(URI, key->uri);
-                    }
-                    ADD_PARAM_HEX_OPTL(KEY_IV, key->iv, 16);
-                    ADD_PARAM_STR_OPTL(KEYFORMAT, key->key_format);
-                    ADD_PARAM_STR_OPTL(KEYFORMATVERSIONS, key->key_format_versions);
-                    END_TAG();
-                }
-            }
-
-            if(seg->data->discontinuity == HLS_TRUE) {
-                ADD_TAG(EXTXDISCONTINUITY);
-                char buf[30];
-                timestamp_to_iso_date(seg->data->pdt, buf, 30);
-                ADD_TAG_ENUM(EXTXPROGRAMDATETIME, buf);
-            }
-
-            if(seg->data->byte_range.n > 0) {
-                if(seg->data->byte_range.o != 0) {
-                    latest = pgprintf(latest, "#%s:%d@%d\n", EXTXBYTERANGE, seg->data->byte_range.n, seg->data->byte_range.o);
-                }else{
-                    latest = pgprintf(latest, "#%s:%d\n", EXTXBYTERANGE, seg->data->byte_range.n);
-                }
-            }
-        
-            if(seg->data->title) {
-                latest = pgprintf(latest, "#%s:%.3f,%s\n", EXTINF, seg->data->duration, seg->data->title);
+        if(seg->data->discontinuity == HLS_TRUE) {
+            ADD_TAG(EXTXDISCONTINUITY);
+            char buf[30];
+            timestamp_to_iso_date(seg->data->pdt, buf, 30);
+            ADD_TAG_ENUM(EXTXPROGRAMDATETIME, buf);
+        }
+        if(seg->data->byte_range.n > 0) {
+            if(seg->data->byte_range.o != 0) {
+                latest = pgprintf(latest, "#%s:%d@%d\n", EXTXBYTERANGE, seg->data->byte_range.n, seg->data->byte_range.o);
             }else{
-                latest = pgprintf(latest, "#%s:%.3f,\n", EXTINF, seg->data->duration);
+                latest = pgprintf(latest, "#%s:%d\n", EXTXBYTERANGE, seg->data->byte_range.n);
             }
-            if(playlist->uri) {
-                const char *uri = find_relative_path(seg->data->uri, playlist->uri);
-                ADD_URI(uri);
-            }else{
-                ADD_URI(seg->data->uri);
+        }
+        if(seg->data->title) {
+            latest = pgprintf(latest, "#%s:%.3f,%s\n", EXTINF, seg->data->duration, seg->data->title);
+        }else{
+            latest = pgprintf(latest, "#%s:%.3f,\n", EXTINF, seg->data->duration);
+        }
+        // see if we can create a relative url
+        if(playlist->uri) {
+            const char *rel = seg->data->uri;
+            const char *ptr_pl = playlist->uri;
+            const char *ptr_seg = seg->data->uri;
+            while(*ptr_seg == *ptr_pl) {
+                if(*ptr_seg == '/') {
+                    rel = ptr_seg + 1;
+                }
+                ptr_seg++;
+                ptr_pl++;
             }
+            ADD_URI(rel);
+        }else{
+            ADD_URI(seg->data->uri);
         }
         seg = seg->next;
     }
 
     ADD_TAG_IF_TRUE(EXTXENDLIST, playlist->end_list);
     page_to_str(root, dest, dest_size);
-
-    free_page_root(root);
 
     return HLS_OK;
 }
@@ -371,16 +335,6 @@ page_t* create_page(page_t *page)
     }
 
     return new_page;
-}
-
-void free_page_root(page_t *root) {
-    page_t * freed = root; 
-    while (freed) {
-        hls_free(freed->buffer);
-        page_t * curr = freed;
-        freed = freed->next;
-        hls_free(curr);
-    }
 }
 
 page_t *pgprintf(page_t *page, const char *format, ...)

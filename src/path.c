@@ -49,6 +49,9 @@
 char *path_combine(char **dest, const char *base, const char *path)
 {
     if(!base) {
+        if (dest) {
+            *dest = path;   
+        } 
         return dest ? *dest : NULL;
     }
 
